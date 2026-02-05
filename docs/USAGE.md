@@ -366,4 +366,6 @@ Claude:
 
 ## 문의
 
-Linear 이슈: [SKT-5](https://linear.app/skt-ai-adoption/issue/SKT-5)
+Linear 이슈:
+- [SKT-5](https://linear.app/skt-ai-adoption/issue/SKT-5) - 제조사 혜택 연장 시스템
+- [SKT-6](https://linear.app/skt-ai-adoption/issue/SKT-6) - 5G 저가 요금제 시뮬레이션
