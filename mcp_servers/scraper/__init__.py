@@ -1,0 +1,1 @@
+"""Scraper MCP server package."""
