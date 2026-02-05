@@ -100,5 +100,93 @@ def generate_spec_document(output_path: str, spec: Dict[str, Any]) -> Dict[str, 
     return {"output_path": str(output_file)}
 
 
+def _scenario_table(title: str, rows: Iterable[List[str]], styles, font_name: str, bg_color: colors.Color) -> List[Any]:
+    """시나리오별 테이블 생성 (배경색 포함)."""
+    story: List[Any] = [Paragraph(f"<b>{title}</b>", styles["Heading3"])]
+    story.append(Spacer(1, 6))
+    table = Table(list(rows), hAlign="LEFT")
+    table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), font_name),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("BACKGROUND", (0, 0), (-1, 0), bg_color),  # 헤더 배경색
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 12))
+    return story
+
+
+@mcp.tool()
+def generate_simulation_report(output_path: str, report_data: Dict[str, Any]) -> Dict[str, Any]:
+    """시뮬레이션 리포트 PDF 생성. 시나리오별 색상 구분 포함."""
+    font_name = _register_font(report_data.get("font_path"))
+    styles = getSampleStyleSheet()
+    styles["Heading1"].fontName = font_name
+    styles["Heading2"].fontName = font_name
+    styles["Heading3"].fontName = font_name
+    styles["BodyText"].fontName = font_name
+
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    doc = SimpleDocTemplate(str(output_file), pagesize=A4)
+    story: List[Any] = []
+    story.append(Paragraph(report_data.get("title", "5G 저가 요금제 시뮬레이션 리포트"), styles["Heading1"]))
+    story.append(Spacer(1, 12))
+
+    sections = report_data.get("sections", {})
+
+    # 요약 섹션
+    if "요약" in sections:
+        story.extend(_section("요약", sections["요약"], styles, font_name))
+
+    # 신규 요금제 스펙
+    if "신규 요금제 스펙" in sections:
+        story.extend(_section("신규 요금제 스펙", sections["신규 요금제 스펙"], styles, font_name))
+
+    # 경쟁사 비교
+    if "경쟁사 비교" in sections:
+        story.extend(_section("경쟁사 비교", sections["경쟁사 비교"], styles, font_name))
+
+    # 시나리오 분석 (색상 구분)
+    if "시나리오 분석" in sections:
+        story.append(Paragraph("<b>시나리오 분석</b>", styles["Heading2"]))
+        story.append(Spacer(1, 6))
+        scenario_colors = {
+            "보수적": colors.HexColor("#FF6B6B"),  # 빨간색
+            "기준": colors.HexColor("#4ECDC4"),  # 청록색
+            "낙관적": colors.HexColor("#95E1D3"),  # 연한 청록색
+        }
+        scenario_data = sections["시나리오 분석"]
+        if isinstance(scenario_data, dict):
+            for scenario_name, rows in scenario_data.items():
+                bg_color = scenario_colors.get(scenario_name, colors.lightgrey)
+                story.extend(_scenario_table(scenario_name, rows, styles, font_name, bg_color))
+        else:
+            # 리스트 형태인 경우
+            story.extend(_section("시나리오 분석", scenario_data, styles, font_name))
+
+    # 고가 요금제 옵션
+    if "고가 요금제 옵션" in sections:
+        story.extend(_section("고가 요금제 옵션", sections["고가 요금제 옵션"], styles, font_name))
+
+    # 권고사항
+    if "권고사항" in sections:
+        story.extend(_section("권고사항", sections["권고사항"], styles, font_name))
+
+    # 비고
+    if notes := report_data.get("notes"):
+        story.append(Paragraph("<b>비고</b>", styles["Heading3"]))
+        story.append(Spacer(1, 6))
+        story.append(Paragraph(str(notes), styles["BodyText"]))
+
+    doc.build(story)
+    return {"output_path": str(output_file)}
+
+
 if __name__ == "__main__":
     mcp.run()

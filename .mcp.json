@@ -27,6 +27,12 @@
       "args": [
         "mcp_servers/pdf/server.py"
       ]
+    },
+    "simulation": {
+      "command": ".venv/bin/python",
+      "args": [
+        "mcp_servers/simulation/server.py"
+      ]
     }
   }
 }

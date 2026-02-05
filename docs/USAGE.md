@@ -12,6 +12,9 @@ SKT 요금제 설계 시스템의 MCP 도구 및 Claude skill 사용법입니다
 | `/list-designs` | 저장된 설계 목록 조회 |
 | `/export-pdf [design_id]` | 설계를 PDF로 출력 |
 | `/calculate-cost [인자]` | 빠른 비용 계산 |
+| `/design-low-cost-plan [가격대]` | 5G 저가 요금제 설계 (3만원대) |
+| `/simulate-migration [인자]` | 가입자 이동 시뮬레이션 실행 |
+| `/export-simulation-report [scenario_id]` | 시뮬레이션 리포트 PDF 출력 |
 
 ### 사용 예시
 
@@ -39,6 +42,7 @@ SKT 요금제 유지 고객에게 해당 혜택을 연장 제공하는 요금제
 | `storage` | 설계 데이터 저장/조회 (SQLite) |
 | `calculator` | 연장 비용 계산, 절감액 산출 |
 | `pdf` | 스펙 문서 PDF 생성 |
+| `simulation` | 가입자 이동 시뮬레이션, Excel 파싱 |
 
 ---
 
@@ -49,7 +53,7 @@ SKT 요금제 유지 고객에게 해당 혜택을 연장 제공하는 요금제
 source .venv/bin/activate
 
 # 의존성 설치 (최초 1회)
-pip install mcp httpx beautifulsoup4 reportlab
+pip install mcp httpx beautifulsoup4 reportlab pandas openpyxl
 ```
 
 MCP 서버는 Claude Code에서 자동으로 연결됩니다 (`.mcp.json` 설정 참조).
@@ -172,6 +176,105 @@ calculate_extension_cost(29000, 6, 24)
 }
 ```
 
+#### `generate_simulation_report(output_path, report_data)`
+시뮬레이션 리포트 PDF를 생성합니다.
+
+**파라미터:**
+- `output_path`: 출력 경로 (예: `data/simulation_report.pdf`)
+- `report_data`: 리포트 내용 (dict)
+
+**report_data 구조:**
+```json
+{
+  "title": "5G 저가 요금제 시뮬레이션 리포트",
+  "sections": {
+    "요약": [["신규 요금제명", "..."], ["월정액", "..."]],
+    "신규 요금제 스펙": [...],
+    "경쟁사 비교": [...],
+    "시나리오 분석": {
+      "보수적": [...],
+      "기준": [...],
+      "낙관적": [...]
+    },
+    "권고사항": [...]
+  }
+}
+```
+
+---
+
+### 5. simulation-mcp
+
+#### `parse_excel(file_path)`
+Excel 파일에서 요금제 데이터를 파싱합니다.
+
+**예상 Excel 구조:**
+```
+| 요금제명 | 월정액 | 데이터구간 | 가입자수 | ARPU | 주요앱 |
+```
+
+#### `estimate_migration_rates(current_plans, new_plan, scenario_type)`
+현재 요금제에서 신규 요금제로의 이동 확률을 추정합니다.
+
+**파라미터:**
+- `current_plans`: 현재 요금제 리스트
+- `new_plan`: 신규 요금제 스펙
+- `scenario_type`: "conservative" | "base" | "optimistic"
+
+**반환값:**
+```json
+{
+  "5GX 플래티넘": 0.12,
+  "5GX 프라임": 0.08,
+  ...
+}
+```
+
+#### `calculate_winback(new_plan, mvno_benchmark)`
+Win-back 효과를 계산합니다.
+
+**반환값:**
+```
+0.15  # float (0~1 범위의 Win-back 확률)
+```
+
+#### `run_simulation(scenario, current_plans, total_subscribers, avg_arpu)`
+시뮬레이션을 실행합니다.
+
+**반환값:**
+```json
+{
+  "arpu_change_pct": -2.5,
+  "annual_revenue_impact_krw": -1500000000,
+  "new_subscribers": 50000,
+  "downgrade_subscribers": 30000,
+  "winback_subscribers": 15000
+}
+```
+
+---
+
+### 6. storage-mcp (확장)
+
+#### `save_scenario(scenario: dict)`
+시뮬레이션 시나리오를 저장합니다.
+
+**필수 필드:**
+- `scenario_type`: "conservative" | "base" | "optimistic"
+- `new_plan`: 신규 요금제 스펙 (dict)
+- `migration_rates`: 요금제별 이동 확률 (dict)
+- `winback_rate`: Win-back 확률
+- `results`: 시뮬레이션 결과 (dict)
+
+#### `list_scenarios()`
+저장된 시나리오 목록을 조회합니다.
+
+#### `get_scenario(scenario_id: str)`
+특정 시나리오의 상세 정보를 조회합니다.
+
+#### `delete_scenario(scenario_id: str)`
+시나리오를 삭제합니다.
+
 ---
 
 ## 사용 시나리오
@@ -207,6 +310,38 @@ Claude:
 1. scrape_skt_plans() → 기존 요금제 정보 확인
 2. compare_with_existing(522000, 600000) → 연장이 78,000원 저렴
 3. calculate_savings(600000, 522000) → 78,000원 절감
+```
+
+### 시나리오 4: 5G 저가 요금제 설계 및 시뮬레이션
+
+```
+사용자: "3만원대 저가 요금제 설계해줘"
+
+Claude:
+1. /design-low-cost-plan 35000 실행
+2. 신규 요금제 스펙 설계 (50GB, 무제한 음성/문자 등)
+3. 결과 저장
+```
+
+```
+사용자: "가입자 이동 시뮬레이션 돌려줘"
+
+Claude:
+1. /simulate-migration 실행
+2. parse_excel() 또는 가정값으로 현재 요금제 파싱
+3. estimate_migration_rates() → 이동 확률 추정
+4. calculate_winback() → Win-back 계산
+5. run_simulation() → 3개 시나리오 실행
+6. save_scenario() → 각 시나리오 저장
+```
+
+```
+사용자: "시뮬레이션 리포트 PDF로 만들어줘"
+
+Claude:
+1. /export-simulation-report scenario_123,scenario_456,scenario_789 실행
+2. get_scenario() → 각 시나리오 조회
+3. generate_simulation_report() → PDF 생성
 ```
 
 ---
