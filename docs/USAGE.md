@@ -1,6 +1,28 @@
 # 요금제 설계 시스템 사용 가이드
 
-SKT 요금제 설계 시스템의 MCP 도구 사용법입니다.
+SKT 요금제 설계 시스템의 MCP 도구 및 Claude skill 사용법입니다.
+
+---
+
+## Claude Skill 명령어
+
+| 명령어 | 설명 |
+|--------|------|
+| `/design-benefit [제조사]` | 제조사 혜택 연장 요금제 설계 |
+| `/list-designs` | 저장된 설계 목록 조회 |
+| `/export-pdf [design_id]` | 설계를 PDF로 출력 |
+| `/calculate-cost [인자]` | 빠른 비용 계산 |
+
+### 사용 예시
+
+```
+/design-benefit 삼성
+/design-benefit apple
+/list-designs
+/export-pdf design_1738745123
+/calculate-cost gemini
+/calculate-cost 29000 6 24
+```
 
 ---
 
