@@ -1,1 +1,0 @@
-"""Simulation MCP server package."""

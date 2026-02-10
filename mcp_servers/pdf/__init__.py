@@ -1,1 +1,0 @@
-"""PDF MCP server package."""

@@ -1,1 +1,0 @@
-"""Storage MCP server package."""
